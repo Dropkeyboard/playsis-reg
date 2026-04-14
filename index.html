@@ -6,7 +6,7 @@
     <title>Playsis 2502 账号注册</title>
     <style>
         :root { --primary: #007aff; --bg: #f2f2f7; }
-        body { font-family: -apple-system, system-ui, sans-serif; background-color: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 360px; }
         h2 { text-align: center; color: #1c1c1e; margin-bottom: 25px; }
         .form-group { margin-bottom: 18px; }
@@ -16,9 +16,10 @@
         .hint { font-size: 11px; color: #aeaeb2; margin-top: 5px; display: block; }
         button { width: 100%; padding: 14px; background-color: var(--primary); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px; }
         button:disabled { background-color: #c7c7cc; cursor: not-allowed; }
-        #status { text-align: center; margin-top: 15px; font-size: 14px; font-weight: 500; min-height: 20px; }
+        #status { text-align: center; margin-top: 15px; font-size: 14px; font-weight: 500; min-height: 24px; word-break: break-all; }
         .success { color: #34c759; }
         .error { color: #ff3b30; }
+        .loading { color: #007aff; }
     </style>
 </head>
 <body>
@@ -28,7 +29,7 @@
     <form id="regForm">
         <div class="form-group">
             <label>用户 ID (必须是8位数字)</label>
-            <input type="text" id="reguid" maxlength="8" placeholder="例如: 12345678" required 
+            <input type="text" id="reguid" maxlength="8" placeholder="例如: 21114098" required 
                    oninput="value=value.replace(/[^\d]/g,'')">
             <span class="hint">请输入 8 位纯数字 ID</span>
         </div>
@@ -61,31 +62,29 @@
     form.onsubmit = async (e) => {
         e.preventDefault();
 
-        // 获取输入值
+        // 1. 获取输入值
         const reguid = document.getElementById('reguid').value;
         const regusername = document.getElementById('regusername').value;
         const regpassword = document.getElementById('regpassword').value;
         const confirmPass = document.getElementById('confirmPass').value;
 
-        // 1. 基础校验
+        // 2. 基础校验
         if (reguid.length !== 8) {
             updateStatus("错误：ID 必须正好是 8 位数字", "error");
             return;
         }
         if (regpassword !== confirmPass) {
-            updateStatus("错误：两次填写的密码不一致", "error");
+            updateStatus("错误：两次密码不一致", "error");
             return;
         }
 
-        // 2. 准备发送请求
-        updateStatus("正在连接服务器...", "");
+        updateStatus("正在通过中转站注册...", "loading");
         submitBtn.disabled = true;
 
-        // 图片中提供的管理凭证
+        // 3. 构造请求参数
         const adminUid = "21114044";
-        const adminPass = "1";
+        const adminPass = "huang2006?";
         
-        // 构造带有所有参数的 URL (使用 URLSearchParams 处理特殊字符转义)
         const params = new URLSearchParams({
             uid: adminUid,
             password: adminPass,
@@ -94,27 +93,31 @@
             regusername: regusername
         });
 
+        // 核心改动：引入 CORS 代理中转
+        const proxyPrefix = "https://cors-anywhere.azm.workers.dev/";
         const targetUrl = `https://api.eachother.work/PlaysisService/RegisterByAdminRawApi?${params.toString()}`;
 
         try {
-            // 注意：如果目标服务器不支持跨域(CORS)，本地文件运行可能会报错
-            // 这里尝试发起请求
-            const response = await fetch(targetUrl, {
-                method: 'GET',
-                mode: 'cors'
+            // 通过代理发送请求，规避跨域限制
+            const response = await fetch(proxyPrefix + targetUrl, {
+                method: 'GET'
             });
 
             const resultText = await response.text();
 
             if (response.ok) {
-                updateStatus("注册成功！服务器返回: " + resultText, "success");
+                // 判断返回内容，根据你的 API 特性调整
+                if (resultText.includes("Success") || resultText.includes("成功") || resultText.length < 50) {
+                    updateStatus("注册完成！响应：" + resultText, "success");
+                } else {
+                    updateStatus("响应：" + resultText, "");
+                }
             } else {
-                updateStatus("注册失败：" + resultText, "error");
+                updateStatus("服务器响应异常，请检查 ID 是否重复", "error");
             }
         } catch (error) {
             console.error(error);
-            // 本地 file:// 运行最常见的报错是跨域限制
-            updateStatus("提交失败：可能是由于浏览器安全策略拦截了跨域请求。请尝试将此文件上传至服务器或使用支持跨域的浏览器环境。", "error");
+            updateStatus("网络错误或代理接口受限，请稍后再试", "error");
         } finally {
             submitBtn.disabled = false;
         }
