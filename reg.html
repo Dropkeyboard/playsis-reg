@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playsis 2502 账号注册</title>
+    <style>
+        :root { --primary: #007aff; --bg: #f2f2f7; }
+        body { font-family: -apple-system, system-ui, sans-serif; background-color: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 360px; }
+        h2 { text-align: center; color: #1c1c1e; margin-bottom: 25px; }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; font-size: 13px; color: #8e8e93; margin-bottom: 6px; padding-left: 4px; }
+        input { width: 100%; padding: 12px 16px; border: 1px solid #d1d1d6; border-radius: 12px; box-sizing: border-box; font-size: 16px; transition: all 0.2s; outline: none; }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,122,255,0.1); }
+        .hint { font-size: 11px; color: #aeaeb2; margin-top: 5px; display: block; }
+        button { width: 100%; padding: 14px; background-color: var(--primary); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+        button:disabled { background-color: #c7c7cc; cursor: not-allowed; }
+        #status { text-align: center; margin-top: 15px; font-size: 14px; font-weight: 500; min-height: 20px; }
+        .success { color: #34c759; }
+        .error { color: #ff3b30; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>用户注册</h2>
+    <form id="regForm">
+        <div class="form-group">
+            <label>用户 ID (必须是8位数字)</label>
+            <input type="text" id="reguid" maxlength="8" placeholder="例如: 12345678" required 
+                   oninput="value=value.replace(/[^\d]/g,'')">
+            <span class="hint">请输入 8 位纯数字 ID</span>
+        </div>
+
+        <div class="form-group">
+            <label>昵称</label>
+            <input type="text" id="regusername" placeholder="你的名字" required>
+        </div>
+
+        <div class="form-group">
+            <label>设置密码</label>
+            <input type="password" id="regpassword" placeholder="请输入密码" required>
+        </div>
+
+        <div class="form-group">
+            <label>确认密码</label>
+            <input type="password" id="confirmPass" placeholder="请再次输入密码" required>
+        </div>
+
+        <button type="submit" id="submitBtn">立即提交注册</button>
+        <div id="status"></div>
+    </form>
+</div>
+
+<script>
+    const form = document.getElementById('regForm');
+    const statusDiv = document.getElementById('status');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+
+        // 获取输入值
+        const reguid = document.getElementById('reguid').value;
+        const regusername = document.getElementById('regusername').value;
+        const regpassword = document.getElementById('regpassword').value;
+        const confirmPass = document.getElementById('confirmPass').value;
+
+        // 1. 基础校验
+        if (reguid.length !== 8) {
+            updateStatus("错误：ID 必须正好是 8 位数字", "error");
+            return;
+        }
+        if (regpassword !== confirmPass) {
+            updateStatus("错误：两次填写的密码不一致", "error");
+            return;
+        }
+
+        // 2. 准备发送请求
+        updateStatus("正在连接服务器...", "");
+        submitBtn.disabled = true;
+
+        // 图片中提供的管理凭证
+        const adminUid = "21114044";
+        const adminPass = "1";
+        
+        // 构造带有所有参数的 URL (使用 URLSearchParams 处理特殊字符转义)
+        const params = new URLSearchParams({
+            uid: adminUid,
+            password: adminPass,
+            reguid: reguid,
+            regpassword: regpassword,
+            regusername: regusername
+        });
+
+        const targetUrl = `https://api.eachother.work/PlaysisService/RegisterByAdminRawApi?${params.toString()}`;
+
+        try {
+            // 注意：如果目标服务器不支持跨域(CORS)，本地文件运行可能会报错
+            // 这里尝试发起请求
+            const response = await fetch(targetUrl, {
+                method: 'GET',
+                mode: 'cors'
+            });
+
+            const resultText = await response.text();
+
+            if (response.ok) {
+                updateStatus("注册成功！服务器返回: " + resultText, "success");
+            } else {
+                updateStatus("注册失败：" + resultText, "error");
+            }
+        } catch (error) {
+            console.error(error);
+            // 本地 file:// 运行最常见的报错是跨域限制
+            updateStatus("提交失败：可能是由于浏览器安全策略拦截了跨域请求。请尝试将此文件上传至服务器或使用支持跨域的浏览器环境。", "error");
+        } finally {
+            submitBtn.disabled = false;
+        }
+    };
+
+    function updateStatus(text, className) {
+        statusDiv.innerText = text;
+        statusDiv.className = className;
+    }
+</script>
+
+</body>
+</html>
